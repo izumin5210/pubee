@@ -1,13 +1,20 @@
 package pubee
 
 type PublisherConfig struct {
-	PublishOpts  []PublishOption
-	Interceptors []Interceptor
+	PublishOpts       []PublishOption
+	Interceptors      []Interceptor
+	OnFailPublishFunc func(*Message, error)
 }
 
 func (c *PublisherConfig) apply(opts []PublisherOption) {
 	for _, f := range opts {
 		f.ApplyPublisherOption(c)
+	}
+}
+
+func (c *PublisherConfig) OnFailPublish(msg *Message, err error) {
+	if f := c.OnFailPublishFunc; f != nil {
+		f(msg, err)
 	}
 }
 
@@ -87,4 +94,10 @@ func WithProtobuf() Option {
 
 func WithMarshalFunc(f MarshalFunc) Option {
 	return BothOptionFunc(func(c *PublishConfig) { c.Marshal = f })
+}
+
+func WithOnFailPublish(f func(*Message, error)) PublisherOption {
+	return PublisherOptionFunc(func(c *PublisherConfig) {
+		c.OnFailPublishFunc = f
+	})
 }

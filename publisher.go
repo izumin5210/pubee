@@ -45,6 +45,8 @@ func (p *publisherImpl) Publish(ctx context.Context, body interface{}, opts ...P
 		return err
 	}
 
+	ctx = SetDriverCallback(ctx, p.cfg)
+
 	p.driver.Publish(ctx, &Message{Data: data, Metadata: cfg.Metadata, Original: body})
 
 	return nil

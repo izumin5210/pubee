@@ -14,7 +14,6 @@ type Driver struct {
 	topic  *pubsub.Topic
 	cfg    *Config
 	wg     sync.WaitGroup
-	cb     pubee.DriverCallback
 }
 
 var _ pubee.Driver = (*Driver)(nil)
@@ -71,7 +70,7 @@ func (d *Driver) Publish(ctx context.Context, msg *pubee.Message) {
 		defer d.wg.Done()
 		_, err := res.Get(context.Background())
 		if err != nil {
-			d.cb.OnFailPublish(msg, err)
+			pubee.GetDriverCallback(ctx).OnFailPublish(msg, err)
 		}
 	}()
 }
@@ -87,8 +86,4 @@ func (d *Driver) Close(ctx context.Context) error {
 	}
 	err := d.client.Close()
 	return err
-}
-
-func (d *Driver) SetCallback(cb pubee.DriverCallback) {
-	d.cb = cb
 }
