@@ -1,8 +1,10 @@
 package pubee
 
+import "context"
+
 type PublisherConfig struct {
 	PublishOpts       []PublishOption
-	Interceptors      []Interceptor
+	Interceptor       Interceptor
 	OnFailPublishFunc func(*Message, error)
 }
 
@@ -56,8 +58,35 @@ func (o BothOptionFunc) ApplyPublisherOption(c *PublisherConfig) {
 
 func WithInterceptors(interceptors ...Interceptor) PublisherOption {
 	return PublisherOptionFunc(func(c *PublisherConfig) {
-		// TODO: fix order
-		c.Interceptors = append(c.Interceptors, interceptors...)
+		if f := c.Interceptor; f != nil {
+			interceptors = append([]Interceptor{f}, interceptors...)
+		}
+		n := len(interceptors)
+		if n == 1 {
+			c.Interceptor = interceptors[0]
+			return
+		}
+
+		// https://github.com/grpc-ecosystem/go-grpc-middleware/blob/v1.0.0/chain.go#L13-L51
+		lastI := n - 1
+		c.Interceptor = func(ctx context.Context, msg *Message, handler func(context.Context, *Message)) {
+			var (
+				chainHandler func(context.Context, *Message)
+				curI         int
+			)
+
+			chainHandler = func(currentCtx context.Context, currentMsg *Message) {
+				if curI == lastI {
+					handler(currentCtx, currentMsg)
+					return
+				}
+				curI++
+				interceptors[curI](currentCtx, currentMsg, chainHandler)
+				curI--
+			}
+
+			interceptors[0](ctx, msg, chainHandler)
+		}
 	})
 }
 

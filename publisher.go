@@ -15,7 +15,7 @@ type Message struct {
 	Original interface{}
 }
 
-type Interceptor func(context.Context, Message, func(context.Context, Message))
+type Interceptor func(context.Context, *Message, func(context.Context, *Message))
 
 func NewPublisher(d Driver, opts ...PublisherOption) Publisher {
 	cfg := new(PublisherConfig)
@@ -46,8 +46,13 @@ func (p *publisherImpl) Publish(ctx context.Context, body interface{}, opts ...P
 	}
 
 	ctx = SetDriverCallback(ctx, p.cfg)
+	msg := &Message{Data: data, Metadata: cfg.Metadata, Original: body}
 
-	p.driver.Publish(ctx, &Message{Data: data, Metadata: cfg.Metadata, Original: body})
+	if f := p.cfg.Interceptor; f == nil {
+		p.driver.Publish(ctx, msg)
+	} else {
+		f(ctx, msg, p.driver.Publish)
+	}
 
 	return nil
 }
