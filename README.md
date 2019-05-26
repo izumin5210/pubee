@@ -14,7 +14,7 @@
 ctx := context.Background()
 
 // Initiailze a driver for Google Cloud Pub/Sub
-driver, err := cloudpubsub.NewDriver(
+driver, err := cloudpubsub.CreateDriver(
 	ctx, "my-gcp-project", "your-topic",
 	cloudpubsub.WithCreateTopicIfNeeded(),  // Create a topic when it does not exist
 	cloudpubsub.WithDeleteTopicOnClose(),   // Delete the topic on close the publisher
@@ -24,14 +24,14 @@ if err != nil {
 }
 
 // Initialize a new publisher instance
-publisher := pubee.NewPublisher(driver,
+publisher := pubee.New(driver,
 	pubee.WithJSON(),  // publish messages as JSON
 	pubee.WithMetadata("content_type", "json"),
 	pubee.WithInterceptors(
 		// ...
 	}),
-	pubee.WithOnFailPublish(func(msg *pubee.Message, err error {
-		// ...
+	pubee.WithOnFailPublish(func(msg *pubee.Message, err error) {
+		// This function is called when failed to publish a message.
 	}),
 )
 defer publisher.Close()
@@ -41,8 +41,5 @@ type Book struct {
 }
 
 // Publish a message!
-err := publisher.Publish(ctx, &Book{Title: "The Go Programming Language"})
-if err != nil {
-	// ...
-}
+publisher.Publish(ctx, &Book{Title: "The Go Programming Language"})
 ```
