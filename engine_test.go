@@ -3,6 +3,7 @@ package pubee_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"reflect"
 	"strings"
 	"testing"
@@ -31,6 +32,18 @@ func (d *fakeDriver) Publish(ctx context.Context, msg *pubee.Message) <-chan err
 }
 func (d *fakeDriver) Flush()                      {}
 func (d *fakeDriver) Close(context.Context) error { return nil }
+
+type fakeLogger struct {
+	logs []string
+}
+
+func (l *fakeLogger) Printf(format string, v ...interface{}) {
+	l.logs = append(l.logs, fmt.Sprintf(format, v...))
+}
+
+func (l *fakeLogger) Print(v ...interface{}) {
+	l.logs = append(l.logs, fmt.Sprint(v...))
+}
 
 func TestPublisher_WithMetadata(t *testing.T) {
 	driver := new(fakeDriver)
@@ -149,7 +162,7 @@ func TestPublisher_WithProtobuf(t *testing.T) {
 	}
 }
 
-func TestPublisher_WithOnFailPublish(t *testing.T) {
+func TestPublisher_OnFailPublish(t *testing.T) {
 	driver := &fakeDriver{
 		PublishFunc: func(ctx context.Context, msg *pubee.Message) <-chan error {
 			ch := make(chan error, 1)
@@ -159,6 +172,7 @@ func TestPublisher_WithOnFailPublish(t *testing.T) {
 		},
 	}
 	var calledCnt int
+	logger := new(fakeLogger)
 	publisher := pubee.New(driver,
 		pubee.WithOnFailPublish(func(msg *pubee.Message, err error) {
 			calledCnt++
@@ -169,11 +183,15 @@ func TestPublisher_WithOnFailPublish(t *testing.T) {
 				t.Errorf("OnFailPublish received error %q, want %q", got, want)
 			}
 		}),
+		pubee.WithErrorLog(logger),
 	)
 	publisher.Publish(context.Background(), "foobarbaz")
 	publisher.Close(context.Background())
 	if got, want := calledCnt, 1; got != want {
 		t.Errorf("OnFailPublish is called %d times, want %d", got, want)
+	}
+	if got, want := len(logger.logs), 1; got != want {
+		t.Errorf("ErrorLog prints %d items, want %d", got, want)
 	}
 }
 

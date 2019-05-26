@@ -22,6 +22,7 @@ type Interceptor func(context.Context, *Message, func(context.Context, *Message)
 
 func New(d Driver, opts ...Option) Engine {
 	cfg := new(Config)
+	cfg.ErrorLog = defaultErrorLog
 	cfg.apply(opts)
 	return &engineImpl{
 		driver: d,
@@ -39,6 +40,10 @@ func (p *engineImpl) Publish(ctx context.Context, body interface{}, opts ...Publ
 	cfg := new(PublishConfig)
 	cfg.apply(p.cfg.PublishOpts)
 	cfg.apply(opts)
+
+	if l := p.cfg.ErrorLog; l != nil {
+		ctx = setErrorLog(ctx, l)
+	}
 
 	if cfg.Marshal == nil {
 		cfg.Marshal = marshal.Default
@@ -70,6 +75,7 @@ func (p *engineImpl) Publish(ctx context.Context, body interface{}, opts ...Publ
 	go func() {
 		defer p.wg.Done()
 		if err := <-errCh; err != nil {
+			GetErrorLog(ctx).Printf("failed to publish message: %v (metadata: %v)", err, msg.Metadata)
 			if f := p.cfg.OnFailPublishFunc; f != nil {
 				f(msg, err)
 			}
@@ -78,6 +84,10 @@ func (p *engineImpl) Publish(ctx context.Context, body interface{}, opts ...Publ
 }
 
 func (p *engineImpl) Close(ctx context.Context) error {
+	if l := p.cfg.ErrorLog; l != nil {
+		ctx = setErrorLog(ctx, l)
+	}
+
 	p.driver.Flush()
 	p.wg.Wait()
 	return p.driver.Close(ctx)

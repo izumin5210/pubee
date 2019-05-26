@@ -8,6 +8,7 @@ import (
 
 type Config struct {
 	PublishOpts       []PublishOption
+	ErrorLog          Logger
 	Interceptor       Interceptor
 	OnFailPublishFunc func(*Message, error)
 }
@@ -53,6 +54,12 @@ var (
 	_ Option        = (PublishOptionFunc)(nil)
 	_ PublishOption = (PublishOptionFunc)(nil)
 )
+
+func WithErrorLog(l Logger) Option {
+	return OptionFunc(func(c *Config) {
+		c.ErrorLog = l
+	})
+}
 
 func WithInterceptors(interceptors ...Interceptor) Option {
 	return OptionFunc(func(c *Config) {

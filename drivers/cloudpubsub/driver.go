@@ -83,7 +83,7 @@ func (d *Driver) Close(ctx context.Context) error {
 	if d.cfg.DeleteTopic {
 		err := d.topic.Delete(ctx)
 		if err != nil {
-			// TODO
+			pubee.GetErrorLog(ctx).Printf("failed to delete a topic: %v", err)
 		}
 	}
 	err := d.client.Close()
