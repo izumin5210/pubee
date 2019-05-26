@@ -1,0 +1,57 @@
+version: 2.1
+
+orbs:
+  go-module: timakin/go-module@0.3.0
+  inline: izumin5210/inline@0.1.0
+
+executors:
+  golang:
+    parameters:
+      version:
+        type: string
+    docker:
+      - image: circleci/golang:<< parameters.version >>
+    environment:
+      - GO111MODULE: "on"
+
+aliases:
+  go1.11: &go-1-11
+    executor:
+      name: golang
+      version: '1.11'
+  go1.12: &go-1-12
+    executor:
+      name: golang
+      version: '1.12'
+
+workflows:
+  version: 2
+  main:
+    jobs:
+      - go-module/download: &setup-base
+          <<: *go-1-12
+          name: 'setup-1.12'
+          persist-to-workspace: true
+          vendoring: true
+
+      - go-module/download:
+          <<: *go-1-11
+          <<: *setup-base
+          name: 'setup-1.11'
+
+      - inline/steps:
+          <<: *go-1-12
+          name: 'test-1.12'
+          steps:
+            - run: go test -coverpkg ./... -coverprofile coverage.txt -covermode atomic -race -v ./...
+            - run: bash <(curl -s https://codecov.io/bash)
+          requires:
+            - setup-1.12
+
+      - inline/steps:
+          <<: *go-1-11
+          name: 'test-1.11'
+          steps:
+            - run: go test -race -v ./...
+          requires:
+            - setup-1.11
