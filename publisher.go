@@ -3,6 +3,8 @@ package pubee
 import (
 	"context"
 	"sync"
+
+	"github.com/izumin5210/pubee/marshal"
 )
 
 type Publisher interface {
@@ -39,7 +41,7 @@ func (p *publisherImpl) Publish(ctx context.Context, body interface{}, opts ...P
 	cfg.apply(opts)
 
 	if cfg.Marshal == nil {
-		cfg.Marshal = MarshalDefault
+		cfg.Marshal = marshal.Default
 	}
 
 	data, err := cfg.Marshal(body)

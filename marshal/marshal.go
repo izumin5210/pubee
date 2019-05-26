@@ -1,4 +1,4 @@
-package pubee
+package marshal
 
 import (
 	"encoding/json"
@@ -7,24 +7,24 @@ import (
 	"github.com/golang/protobuf/proto"
 )
 
-type MarshalFunc func(interface{}) ([]byte, error)
+type Func func(interface{}) ([]byte, error)
 
-func MarshalDefault(in interface{}) ([]byte, error) {
+func Default(in interface{}) ([]byte, error) {
 	switch v := in.(type) {
 	case string:
 		return []byte(v), nil
 	case []byte:
 		return v, nil
 	default:
-		return MarshalJSON(in)
+		return JSON(in)
 	}
 }
 
-func MarshalJSON(in interface{}) ([]byte, error) {
+func JSON(in interface{}) ([]byte, error) {
 	return json.Marshal(in)
 }
 
-func MarshalProtobuf(in interface{}) ([]byte, error) {
+func Protobuf(in interface{}) ([]byte, error) {
 	if m, ok := in.(proto.Message); ok {
 		return proto.Marshal(m)
 	}

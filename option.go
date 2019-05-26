@@ -1,6 +1,10 @@
 package pubee
 
-import "context"
+import (
+	"context"
+
+	"github.com/izumin5210/pubee/marshal"
+)
 
 type PublisherConfig struct {
 	PublishOpts       []PublishOption
@@ -16,7 +20,7 @@ func (c *PublisherConfig) apply(opts []PublisherOption) {
 
 type PublishConfig struct {
 	Metadata map[string]string
-	Marshal  MarshalFunc
+	Marshal  marshal.Func
 }
 
 func (c *PublishConfig) apply(opts []PublishOption) {
@@ -108,14 +112,14 @@ func WithMetadataMap(meta map[string]string) Option {
 }
 
 func WithJSON() Option {
-	return WithMarshalFunc(MarshalJSON)
+	return WithMarshalFunc(marshal.JSON)
 }
 
 func WithProtobuf() Option {
-	return WithMarshalFunc(MarshalProtobuf)
+	return WithMarshalFunc(marshal.Protobuf)
 }
 
-func WithMarshalFunc(f MarshalFunc) Option {
+func WithMarshalFunc(f marshal.Func) Option {
 	return BothOptionFunc(func(c *PublishConfig) { c.Marshal = f })
 }
 
