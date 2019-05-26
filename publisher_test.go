@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/gogo/protobuf/proto"
-	"github.com/gogo/protobuf/proto/proto3_proto"
+	"github.com/golang/protobuf/proto"
+	"github.com/golang/protobuf/proto/proto3_proto"
 	"github.com/google/go-cmp/cmp"
 	"github.com/izumin5210/pubee"
 )
