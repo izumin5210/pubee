@@ -2,6 +2,7 @@ package pubee
 
 import (
 	"context"
+	"sync"
 )
 
 type Publisher interface {
@@ -29,6 +30,7 @@ func NewPublisher(d Driver, opts ...PublisherOption) Publisher {
 type publisherImpl struct {
 	driver Driver
 	cfg    *PublisherConfig
+	wg     sync.WaitGroup
 }
 
 func (p *publisherImpl) Publish(ctx context.Context, body interface{}, opts ...PublishOption) error {
@@ -45,18 +47,32 @@ func (p *publisherImpl) Publish(ctx context.Context, body interface{}, opts ...P
 		return err
 	}
 
-	ctx = SetDriverCallback(ctx, p.cfg)
+	var errCh <-chan error
 	msg := &Message{Data: data, Metadata: cfg.Metadata, Original: body}
 
 	if f := p.cfg.Interceptor; f == nil {
-		p.driver.Publish(ctx, msg)
+		errCh = p.driver.Publish(ctx, msg)
 	} else {
-		f(ctx, msg, p.driver.Publish)
+		f(ctx, msg, func(ctx context.Context, msg *Message) {
+			errCh = p.driver.Publish(ctx, msg)
+		})
 	}
+
+	p.wg.Add(1)
+	go func() {
+		defer p.wg.Done()
+		if err := <-errCh; err != nil {
+			if f := p.cfg.OnFailPublishFunc; f != nil {
+				f(msg, err)
+			}
+		}
+	}()
 
 	return nil
 }
 
 func (p *publisherImpl) Close(ctx context.Context) error {
+	p.driver.Flush()
+	p.wg.Wait()
 	return p.driver.Close(ctx)
 }

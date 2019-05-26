@@ -90,7 +90,10 @@ func TestDriver(t *testing.T) {
 		t.Fatalf("failed to create a cloudpubsub.Driver: %v", err)
 	}
 
-	driver.Publish(ctx, &pubee.Message{Data: []byte("test message")})
+	err = <-driver.Publish(ctx, &pubee.Message{Data: []byte("test message")})
+	if err != nil {
+		t.Errorf("failed to publish a message: %v", err)
+	}
 	driver.Close(ctx)
 
 	if got, want := len(pst.Server.Messages()), 1; got != want {
@@ -195,6 +198,7 @@ func TestDriver_OnFailPublishCalled(t *testing.T) {
 		cloudpubsub.WithClientOptions(option.WithGRPCConn(pst.Conn(t))),
 		cloudpubsub.WithCreateTopicIfNeeded(),
 		cloudpubsub.WithPublishSettings(func(s *pubsub.PublishSettings) {
+			s.CountThreshold = 1
 			s.Timeout = 30 * time.Millisecond
 		}),
 	)
@@ -204,22 +208,25 @@ func TestDriver_OnFailPublishCalled(t *testing.T) {
 
 	var calledCnt int
 
-	ctx = pubee.SetDriverCallback(ctx, &fakeDriverCallback{
-		OnFailPublishFunc: func(msg *pubee.Message, err error) {
-			calledCnt++
-			if err == nil {
-				t.Error("OnFailPublish should receive an error")
-			}
-		},
-	})
+	errChCh := make(chan (<-chan error), 3)
 
+	errChCh <- driver.Publish(ctx, &pubee.Message{Data: []byte("test message1")})
+	time.Sleep(30 * time.Millisecond)
 	pst.Server.Close()
-	driver.Publish(ctx, &pubee.Message{Data: []byte("test message1")})
-	driver.Publish(ctx, &pubee.Message{Data: []byte("test message2")})
-	driver.Publish(ctx, &pubee.Message{Data: []byte("test message3")})
+	errChCh <- driver.Publish(ctx, &pubee.Message{Data: []byte("test message2")})
+	errChCh <- driver.Publish(ctx, &pubee.Message{Data: []byte("test message3")})
 	driver.Close(ctx)
+	close(errChCh)
 
-	if got, want := calledCnt, 3; got != want {
+	for errCh := range errChCh {
+		for err := range errCh {
+			if err != nil {
+				calledCnt++
+			}
+		}
+	}
+
+	if got, want := calledCnt, 2; got != want {
 		t.Errorf("OnFailPublish is called %d times, want %d", got, want)
 	}
 }

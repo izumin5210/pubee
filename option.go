@@ -14,12 +14,6 @@ func (c *PublisherConfig) apply(opts []PublisherOption) {
 	}
 }
 
-func (c *PublisherConfig) OnFailPublish(msg *Message, err error) {
-	if f := c.OnFailPublishFunc; f != nil {
-		f(msg, err)
-	}
-}
-
 type PublishConfig struct {
 	Metadata map[string]string
 	Marshal  MarshalFunc

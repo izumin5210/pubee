@@ -15,18 +15,21 @@ import (
 
 type fakeDriver struct {
 	Messages    []*pubee.Message
-	PublishFunc func(context.Context, *pubee.Message)
+	PublishFunc func(context.Context, *pubee.Message) <-chan error
 }
 
 var _ pubee.Driver = (*fakeDriver)(nil)
 
-func (d *fakeDriver) Publish(ctx context.Context, msg *pubee.Message) {
+func (d *fakeDriver) Publish(ctx context.Context, msg *pubee.Message) <-chan error {
 	if f := d.PublishFunc; f != nil {
-		f(ctx, msg)
-		return
+		return f(ctx, msg)
 	}
 	d.Messages = append(d.Messages, msg)
+	errCh := make(chan error)
+	close(errCh)
+	return errCh
 }
+func (d *fakeDriver) Flush()                      {}
 func (d *fakeDriver) Close(context.Context) error { return nil }
 
 func TestPublisher_WithMetadata(t *testing.T) {
@@ -144,8 +147,11 @@ func TestPublisher_WithProtobuf(t *testing.T) {
 
 func TestPublisher_WithOnFailPublish(t *testing.T) {
 	driver := &fakeDriver{
-		PublishFunc: func(ctx context.Context, msg *pubee.Message) {
-			pubee.GetDriverCallback(ctx).OnFailPublish(msg, errors.New("unfortunate error"))
+		PublishFunc: func(ctx context.Context, msg *pubee.Message) <-chan error {
+			ch := make(chan error, 1)
+			ch <- errors.New("unfortunate error")
+			close(ch)
+			return ch
 		},
 	}
 	var calledCnt int
@@ -164,6 +170,7 @@ func TestPublisher_WithOnFailPublish(t *testing.T) {
 	if err != nil {
 		t.Errorf("Publish() returns %v, want nil", err)
 	}
+	publisher.Close(context.Background())
 	if got, want := calledCnt, 1; got != want {
 		t.Errorf("OnFailPublish is called %d times, want %d", got, want)
 	}
