@@ -16,7 +16,7 @@ type Driver struct {
 
 var _ pubee.Driver = (*Driver)(nil)
 
-func NewDriver(ctx context.Context, projectID, topicID string, opts ...Option) (*Driver, error) {
+func CreateDriver(ctx context.Context, projectID, topicID string, opts ...Option) (*Driver, error) {
 	cfg := new(Config)
 	cfg.apply(opts)
 

@@ -81,7 +81,7 @@ func TestDriver(t *testing.T) {
 		t.Fatalf("failed to create pubsub.Topic: %v", err)
 	}
 
-	driver, err := cloudpubsub.NewDriver(ctx,
+	driver, err := cloudpubsub.CreateDriver(ctx,
 		"awesomeproj",
 		"awesometopic",
 		cloudpubsub.WithClientOptions(option.WithGRPCConn(pst.Conn(t))),
@@ -107,13 +107,13 @@ func TestDriver_WithoutTopic(t *testing.T) {
 
 	ctx := context.Background()
 
-	_, err := cloudpubsub.NewDriver(ctx,
+	_, err := cloudpubsub.CreateDriver(ctx,
 		"awesomeproj",
 		"awesometopic",
 		cloudpubsub.WithClientOptions(option.WithGRPCConn(pst.Conn(t))),
 	)
 	if err == nil {
-		t.Error("NewDriver should return an error")
+		t.Error("CreateDriver should return an error")
 	}
 }
 
@@ -123,7 +123,7 @@ func TestDriver_WithCreateTopic(t *testing.T) {
 
 	ctx := context.Background()
 
-	driver, err := cloudpubsub.NewDriver(ctx,
+	driver, err := cloudpubsub.CreateDriver(ctx,
 		"awesomeproj",
 		"awesometopic",
 		cloudpubsub.WithClientOptions(option.WithGRPCConn(pst.Conn(t))),
@@ -153,7 +153,7 @@ func TestDriver_WithCreateTopic_and_WithDeleteTopic(t *testing.T) {
 
 	ctx := context.Background()
 
-	driver, err := cloudpubsub.NewDriver(ctx,
+	driver, err := cloudpubsub.CreateDriver(ctx,
 		"awesomeproj",
 		"awesometopic",
 		cloudpubsub.WithClientOptions(option.WithGRPCConn(pst.Conn(t))),
@@ -192,7 +192,7 @@ func TestDriver_OnFailPublishCalled(t *testing.T) {
 
 	ctx := context.Background()
 
-	driver, err := cloudpubsub.NewDriver(ctx,
+	driver, err := cloudpubsub.CreateDriver(ctx,
 		"awesomeproj",
 		"awesometopic",
 		cloudpubsub.WithClientOptions(option.WithGRPCConn(pst.Conn(t))),
