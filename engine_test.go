@@ -36,15 +36,15 @@ func TestPublisher_WithMetadata(t *testing.T) {
 	driver := new(fakeDriver)
 	publisher := pubee.New(driver,
 		pubee.WithMetadataMap(map[string]string{"foo": "1", "bar": "2"}),
+		pubee.WithOnFailPublish(func(msg *pubee.Message, err error) {
+			t.Errorf("Publish() returns %v, want nil", err)
+		}),
 	)
-	err := publisher.Publish(
+	publisher.Publish(
 		context.Background(),
 		"foobarbaz",
 		pubee.WithMetadata("baz", "3", "foo", "foooooo"),
 	)
-	if err != nil {
-		t.Errorf("Publish() returns %v, want nil", err)
-	}
 	if got, want := len(driver.Messages), 1; got != want {
 		t.Errorf("Published messages are %d, want %d", got, want)
 	} else {
@@ -80,15 +80,15 @@ func TestPublisher_WithInterceptors(t *testing.T) {
 				ops = append(ops, "3-after")
 			},
 		),
+		pubee.WithOnFailPublish(func(msg *pubee.Message, err error) {
+			t.Errorf("Publish() returns %v, want nil", err)
+		}),
 	)
-	err := publisher.Publish(
+	publisher.Publish(
 		context.Background(),
 		"foobarbaz",
 		pubee.WithMetadata("baz", "3", "foo", "foooooo"),
 	)
-	if err != nil {
-		t.Errorf("Publish() returns %v, want nil", err)
-	}
 	if got, want := len(driver.Messages), 1; got != want {
 		t.Errorf("Published messages are %d, want %d", got, want)
 	}
@@ -102,14 +102,16 @@ func TestPublisher_WithInterceptors(t *testing.T) {
 
 func TestPublisher_WithJSON(t *testing.T) {
 	driver := new(fakeDriver)
-	publisher := pubee.New(driver, pubee.WithJSON())
-	err := publisher.Publish(
+	publisher := pubee.New(driver,
+		pubee.WithJSON(),
+		pubee.WithOnFailPublish(func(msg *pubee.Message, err error) {
+			t.Errorf("Publish() returns %v, want nil", err)
+		}),
+	)
+	publisher.Publish(
 		context.Background(),
 		"foobarbaz",
 	)
-	if err != nil {
-		t.Errorf("Publish() returns %v, want nil", err)
-	}
 	if got, want := len(driver.Messages), 1; got != want {
 		t.Errorf("Published messages are %d, want %d", got, want)
 	} else {
@@ -122,18 +124,20 @@ func TestPublisher_WithJSON(t *testing.T) {
 
 func TestPublisher_WithProtobuf(t *testing.T) {
 	driver := new(fakeDriver)
-	publisher := pubee.New(driver, pubee.WithProtobuf())
+	publisher := pubee.New(driver,
+		pubee.WithProtobuf(),
+		pubee.WithOnFailPublish(func(msg *pubee.Message, err error) {
+			t.Errorf("Publish() returns %v, want nil", err)
+		}),
+	)
 	in := &proto3_proto.Message{Name: "Foo Bar", Hilarity: proto3_proto.Message_PUNS}
-	err := publisher.Publish(context.Background(), in)
-	if err != nil {
-		t.Errorf("Publish() returns %v, want nil", err)
-	}
+	publisher.Publish(context.Background(), in)
 	if got, want := len(driver.Messages), 1; got != want {
 		t.Errorf("Published messages are %d, want %d", got, want)
 	} else {
 		msg := driver.Messages[0]
 		var out proto3_proto.Message
-		err = proto.Unmarshal(msg.Data, &out)
+		err := proto.Unmarshal(msg.Data, &out)
 		if err != nil {
 			t.Errorf("failed to unmarshal publishhed message: %v", err)
 		}
@@ -166,10 +170,26 @@ func TestPublisher_WithOnFailPublish(t *testing.T) {
 			}
 		}),
 	)
-	err := publisher.Publish(context.Background(), "foobarbaz")
-	if err != nil {
-		t.Errorf("Publish() returns %v, want nil", err)
+	publisher.Publish(context.Background(), "foobarbaz")
+	publisher.Close(context.Background())
+	if got, want := calledCnt, 1; got != want {
+		t.Errorf("OnFailPublish is called %d times, want %d", got, want)
 	}
+}
+
+func TestPublisher_WhenFailMarshal(t *testing.T) {
+	driver := new(fakeDriver)
+	var calledCnt int
+	publisher := pubee.New(driver,
+		pubee.WithProtobuf(),
+		pubee.WithOnFailPublish(func(msg *pubee.Message, err error) {
+			calledCnt++
+			if got := msg.Data; got != nil {
+				t.Errorf("OnFailPublish received message %q, want %v", got, nil)
+			}
+		}),
+	)
+	publisher.Publish(context.Background(), "foobarbaz")
 	publisher.Close(context.Background())
 	if got, want := calledCnt, 1; got != want {
 		t.Errorf("OnFailPublish is called %d times, want %d", got, want)

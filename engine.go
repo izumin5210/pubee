@@ -8,7 +8,7 @@ import (
 )
 
 type Engine interface {
-	Publish(context.Context, interface{}, ...PublishOption) error
+	Publish(context.Context, interface{}, ...PublishOption)
 	Close(context.Context) error
 }
 
@@ -35,7 +35,7 @@ type engineImpl struct {
 	wg     sync.WaitGroup
 }
 
-func (p *engineImpl) Publish(ctx context.Context, body interface{}, opts ...PublishOption) error {
+func (p *engineImpl) Publish(ctx context.Context, body interface{}, opts ...PublishOption) {
 	cfg := new(PublishConfig)
 	cfg.apply(p.cfg.PublishOpts)
 	cfg.apply(opts)
@@ -44,20 +44,26 @@ func (p *engineImpl) Publish(ctx context.Context, body interface{}, opts ...Publ
 		cfg.Marshal = marshal.Default
 	}
 
+	var errCh <-chan error
+	msg := &Message{Metadata: cfg.Metadata, Original: body}
+
 	data, err := cfg.Marshal(body)
 	if err != nil {
-		return err
+		ch := make(chan error, 1)
+		ch <- err
+		errCh = ch
 	}
 
-	var errCh <-chan error
-	msg := &Message{Data: data, Metadata: cfg.Metadata, Original: body}
+	if errCh == nil {
+		msg.Data = data
 
-	if f := p.cfg.Interceptor; f == nil {
-		errCh = p.driver.Publish(ctx, msg)
-	} else {
-		f(ctx, msg, func(ctx context.Context, msg *Message) {
+		if f := p.cfg.Interceptor; f == nil {
 			errCh = p.driver.Publish(ctx, msg)
-		})
+		} else {
+			f(ctx, msg, func(ctx context.Context, msg *Message) {
+				errCh = p.driver.Publish(ctx, msg)
+			})
+		}
 	}
 
 	p.wg.Add(1)
@@ -69,8 +75,6 @@ func (p *engineImpl) Publish(ctx context.Context, body interface{}, opts ...Publ
 			}
 		}
 	}()
-
-	return nil
 }
 
 func (p *engineImpl) Close(ctx context.Context) error {
