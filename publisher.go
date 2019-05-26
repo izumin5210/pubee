@@ -37,7 +37,7 @@ func (p *publisherImpl) Publish(ctx context.Context, body interface{}, opts ...P
 	cfg.apply(opts)
 
 	if cfg.Marshal == nil {
-		cfg.Marshal = MarshalJSON
+		cfg.Marshal = MarshalDefault
 	}
 
 	data, err := cfg.Marshal(body)

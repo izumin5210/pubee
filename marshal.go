@@ -9,6 +9,17 @@ import (
 
 type MarshalFunc func(interface{}) ([]byte, error)
 
+func MarshalDefault(in interface{}) ([]byte, error) {
+	switch v := in.(type) {
+	case string:
+		return []byte(v), nil
+	case []byte:
+		return v, nil
+	default:
+		return MarshalJSON(in)
+	}
+}
+
 func MarshalJSON(in interface{}) ([]byte, error) {
 	return json.Marshal(in)
 }
