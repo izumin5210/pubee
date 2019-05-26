@@ -7,7 +7,7 @@ import (
 	"github.com/izumin5210/pubee/marshal"
 )
 
-type Publisher interface {
+type Engine interface {
 	Publish(context.Context, interface{}, ...PublishOption) error
 	Close(context.Context) error
 }
@@ -20,22 +20,22 @@ type Message struct {
 
 type Interceptor func(context.Context, *Message, func(context.Context, *Message))
 
-func NewPublisher(d Driver, opts ...PublisherOption) Publisher {
-	cfg := new(PublisherConfig)
+func New(d Driver, opts ...Option) Engine {
+	cfg := new(Config)
 	cfg.apply(opts)
-	return &publisherImpl{
+	return &engineImpl{
 		driver: d,
 		cfg:    cfg,
 	}
 }
 
-type publisherImpl struct {
+type engineImpl struct {
 	driver Driver
-	cfg    *PublisherConfig
+	cfg    *Config
 	wg     sync.WaitGroup
 }
 
-func (p *publisherImpl) Publish(ctx context.Context, body interface{}, opts ...PublishOption) error {
+func (p *engineImpl) Publish(ctx context.Context, body interface{}, opts ...PublishOption) error {
 	cfg := new(PublishConfig)
 	cfg.apply(p.cfg.PublishOpts)
 	cfg.apply(opts)
@@ -73,7 +73,7 @@ func (p *publisherImpl) Publish(ctx context.Context, body interface{}, opts ...P
 	return nil
 }
 
-func (p *publisherImpl) Close(ctx context.Context) error {
+func (p *engineImpl) Close(ctx context.Context) error {
 	p.driver.Flush()
 	p.wg.Wait()
 	return p.driver.Close(ctx)

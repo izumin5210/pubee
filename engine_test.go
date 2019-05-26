@@ -34,7 +34,7 @@ func (d *fakeDriver) Close(context.Context) error { return nil }
 
 func TestPublisher_WithMetadata(t *testing.T) {
 	driver := new(fakeDriver)
-	publisher := pubee.NewPublisher(driver,
+	publisher := pubee.New(driver,
 		pubee.WithMetadataMap(map[string]string{"foo": "1", "bar": "2"}),
 	)
 	err := publisher.Publish(
@@ -62,7 +62,7 @@ func TestPublisher_WithMetadata(t *testing.T) {
 func TestPublisher_WithInterceptors(t *testing.T) {
 	var ops []string
 	driver := new(fakeDriver)
-	publisher := pubee.NewPublisher(driver,
+	publisher := pubee.New(driver,
 		pubee.WithInterceptors(
 			func(ctx context.Context, msg *pubee.Message, handle func(context.Context, *pubee.Message)) {
 				ops = append(ops, "1-before")
@@ -102,7 +102,7 @@ func TestPublisher_WithInterceptors(t *testing.T) {
 
 func TestPublisher_WithJSON(t *testing.T) {
 	driver := new(fakeDriver)
-	publisher := pubee.NewPublisher(driver, pubee.WithJSON())
+	publisher := pubee.New(driver, pubee.WithJSON())
 	err := publisher.Publish(
 		context.Background(),
 		"foobarbaz",
@@ -122,7 +122,7 @@ func TestPublisher_WithJSON(t *testing.T) {
 
 func TestPublisher_WithProtobuf(t *testing.T) {
 	driver := new(fakeDriver)
-	publisher := pubee.NewPublisher(driver, pubee.WithProtobuf())
+	publisher := pubee.New(driver, pubee.WithProtobuf())
 	in := &proto3_proto.Message{Name: "Foo Bar", Hilarity: proto3_proto.Message_PUNS}
 	err := publisher.Publish(context.Background(), in)
 	if err != nil {
@@ -155,7 +155,7 @@ func TestPublisher_WithOnFailPublish(t *testing.T) {
 		},
 	}
 	var calledCnt int
-	publisher := pubee.NewPublisher(driver,
+	publisher := pubee.New(driver,
 		pubee.WithOnFailPublish(func(msg *pubee.Message, err error) {
 			calledCnt++
 			if got, want := string(msg.Data), "foobarbaz"; got != want {

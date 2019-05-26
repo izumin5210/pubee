@@ -6,17 +6,25 @@ import (
 	"github.com/izumin5210/pubee/marshal"
 )
 
-type PublisherConfig struct {
+type Config struct {
 	PublishOpts       []PublishOption
 	Interceptor       Interceptor
 	OnFailPublishFunc func(*Message, error)
 }
 
-func (c *PublisherConfig) apply(opts []PublisherOption) {
+func (c *Config) apply(opts []Option) {
 	for _, f := range opts {
-		f.ApplyPublisherOption(c)
+		f.applyOption(c)
 	}
 }
+
+type Option interface {
+	applyOption(*Config)
+}
+
+type OptionFunc func(*Config)
+
+func (o OptionFunc) applyOption(c *Config) { o(c) }
 
 type PublishConfig struct {
 	Metadata map[string]string
@@ -25,37 +33,29 @@ type PublishConfig struct {
 
 func (c *PublishConfig) apply(opts []PublishOption) {
 	for _, f := range opts {
-		f.ApplyPublishOption(c)
+		f.applyPublishOption(c)
 	}
 }
 
-type Option interface {
-	PublisherOption
-	PublishOption
-}
-
-type PublisherOption interface {
-	ApplyPublisherOption(*PublisherConfig)
-}
-
-type PublisherOptionFunc func(*PublisherConfig)
-
-func (o PublisherOptionFunc) ApplyPublisherOption(c *PublisherConfig) { o(c) }
-
 type PublishOption interface {
-	ApplyPublishOption(*PublishConfig)
+	Option
+	applyPublishOption(*PublishConfig)
 }
 
-type BothOptionFunc func(*PublishConfig)
+type PublishOptionFunc func(*PublishConfig)
 
-func (o BothOptionFunc) ApplyPublishOption(c *PublishConfig) { o(c) }
+func (o PublishOptionFunc) applyOption(c *Config) { c.PublishOpts = append(c.PublishOpts, o) }
 
-func (o BothOptionFunc) ApplyPublisherOption(c *PublisherConfig) {
-	c.PublishOpts = append(c.PublishOpts, o)
-}
+func (o PublishOptionFunc) applyPublishOption(c *PublishConfig) { o(c) }
 
-func WithInterceptors(interceptors ...Interceptor) PublisherOption {
-	return PublisherOptionFunc(func(c *PublisherConfig) {
+var (
+	_ Option        = (OptionFunc)(nil)
+	_ Option        = (PublishOptionFunc)(nil)
+	_ PublishOption = (PublishOptionFunc)(nil)
+)
+
+func WithInterceptors(interceptors ...Interceptor) Option {
+	return OptionFunc(func(c *Config) {
 		if f := c.Interceptor; f != nil {
 			interceptors = append([]Interceptor{f}, interceptors...)
 		}
@@ -88,8 +88,8 @@ func WithInterceptors(interceptors ...Interceptor) PublisherOption {
 	})
 }
 
-func WithMetadata(kv ...string) Option {
-	return BothOptionFunc(func(c *PublishConfig) {
+func WithMetadata(kv ...string) PublishOption {
+	return PublishOptionFunc(func(c *PublishConfig) {
 		if c.Metadata == nil {
 			c.Metadata = map[string]string{}
 		}
@@ -99,8 +99,8 @@ func WithMetadata(kv ...string) Option {
 	})
 }
 
-func WithMetadataMap(meta map[string]string) Option {
-	return BothOptionFunc(func(c *PublishConfig) {
+func WithMetadataMap(meta map[string]string) PublishOption {
+	return PublishOptionFunc(func(c *PublishConfig) {
 		if c.Metadata == nil {
 			c.Metadata = meta
 			return
@@ -111,20 +111,20 @@ func WithMetadataMap(meta map[string]string) Option {
 	})
 }
 
-func WithJSON() Option {
+func WithJSON() PublishOption {
 	return WithMarshalFunc(marshal.JSON)
 }
 
-func WithProtobuf() Option {
+func WithProtobuf() PublishOption {
 	return WithMarshalFunc(marshal.Protobuf)
 }
 
-func WithMarshalFunc(f marshal.Func) Option {
-	return BothOptionFunc(func(c *PublishConfig) { c.Marshal = f })
+func WithMarshalFunc(f marshal.Func) PublishOption {
+	return PublishOptionFunc(func(c *PublishConfig) { c.Marshal = f })
 }
 
-func WithOnFailPublish(f func(*Message, error)) PublisherOption {
-	return PublisherOptionFunc(func(c *PublisherConfig) {
+func WithOnFailPublish(f func(*Message, error)) Option {
+	return OptionFunc(func(c *Config) {
 		c.OnFailPublishFunc = f
 	})
 }
