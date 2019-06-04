@@ -29,12 +29,12 @@ publisher := pubee.New(driver,
 	pubee.WithMetadata("content_type", "json"),
 	pubee.WithInterceptors(
 		// ...
-	}),
+	),
 	pubee.WithOnFailPublish(func(msg *pubee.Message, err error) {
 		// This function is called when failed to publish a message.
 	}),
 )
-defer publisher.Close()
+defer publisher.Close(ctx)
 
 type Book struct {
 	Title  string `json:"title"`
